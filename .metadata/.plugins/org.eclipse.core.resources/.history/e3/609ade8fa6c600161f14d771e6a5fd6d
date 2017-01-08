@@ -1,0 +1,560 @@
+#include "AircraftMonitoringSystem.h"
+
+ResponseTime RT;
+ResponseTime RT2;
+ResponseTime RT3;
+
+AircraftMonitoringSystem::AircraftMonitoringSystem() {
+	srand(time(NULL)); //random seed
+	Initialize();
+	SMOKE_SIM_1 = false;
+	SMOKE_SIM_2 = false;
+	READINGS_REQUESTED = false;
+
+	FuelReadingInfo = new ReadingData(NUM_OF_READINGS, &o_FuelDial, FUEL_TIME_MULTIPLIER, FUEL_TIME_UNIT, "FUEL CONSUMPTION RATE::", this);
+	TemperatureReadingInfo = new ReadingData(NUM_OF_READINGS, &o_EngineTemperatureDial, ENGINE_TEMPERATURE_TIME_MULTIPLIER, ENGINE_TEMPERATURE_TIME_UNIT, "ENGINE TEMPERATURE VARIATION::", this);
+	PressureReadingInfo = new ReadingData(NUM_OF_READINGS, &o_EnginePressureDial, ENGINE_PRESSURE_TIME_MULTIPLIER, ENGINE_PRESSURE_TIME_UNIT, "ENGINE PRESSURE FLUCTUATION::", this);
+}
+
+AircraftMonitoringSystem::~AircraftMonitoringSystem () {
+
+	delete FuelReadingInfo;
+	delete TemperatureReadingInfo;
+	delete PressureReadingInfo;
+}
+
+void AircraftMonitoringSystem::Start() {
+	std::cout << "Starting Simulation of Aircraft Monitoring System...\n";
+
+	PollSensors_PARAM.sched_priority = PollSensors_PRIORITY;
+	SimulateData_PARAM.sched_priority = SimulateData_PRIORITY;
+	DisplayHandler_PARAM.sched_priority = DisplayHandler_PRIORITY;
+	KeyboardHandler_PARAM.sched_priority = KeyboardHandler_PRIORITY;
+	DialAverageRateReading_PARAM.sched_priority = DialAverageRateReading_PRIORITY;
+	InterruptHandler_PARAM.sched_priority = InterruptHandler_PRIORITY;
+
+	pthread_create(&PollSensors_ID, NULL, &AircraftMonitoringSystem::PollSensors_ENTRY, this);
+	pthread_create(&SimulateData_ID, NULL, &AircraftMonitoringSystem::SimulateData_ENTRY, this);
+	pthread_create(&DisplayHandler_ID, NULL, &AircraftMonitoringSystem::DisplayHandler_ENTRY, this);
+	pthread_create(&KeyboardHandler_ID, NULL, &AircraftMonitoringSystem::KeyboardHandler_ENTRY, this);
+
+	pthread_join(PollSensors_ID, NULL);
+	pthread_join(SimulateData_ID, NULL);
+	pthread_join(DisplayHandler_ID, NULL);
+	pthread_join(KeyboardHandler_ID, NULL);
+}
+
+
+void* AircraftMonitoringSystem::PollSensors(void) {
+
+	int C_Id = ChannelCreate(0);
+	Timer tc(C_Id);
+	tc.setTimer(0, 1000000 * POLLING_PERIOD);
+
+	int rcvid_c;
+	Message msg;
+
+	bool FuelTriggered, PressureTriggered, TemperatureTriggered, Smoke1Triggered, Smoke2Triggered = false;
+
+	while (1) {
+
+		rcvid_c = MsgReceive(C_Id, &msg, sizeof(msg), NULL);
+
+		if (rcvid_c == 0)
+		{
+			if (m_FuelSensor.Poll() == false) {
+
+				if (!FuelTriggered) {
+					StartInterrupt(m_FuelSensor.GetLatestError(),&m_FuelSensor);
+					FuelTriggered = true;
+				}
+
+			} else {
+				FuelTriggered = false;
+			}
+
+			if (m_EnginePressureSensor.Poll() == false) {
+
+				if (!PressureTriggered) {
+
+					StartInterrupt(m_EnginePressureSensor.GetLatestError(),&m_EnginePressureSensor);
+					PressureTriggered = true;
+				}
+
+			} else {
+				PressureTriggered = false;
+			}
+
+			if (m_EngineTemperatureSensor.Poll() == false) {
+
+				if (!TemperatureTriggered) {
+
+					StartInterrupt(m_EngineTemperatureSensor.GetLatestError(),&m_EngineTemperatureSensor);
+					TemperatureTriggered = true;
+				}
+
+			} else {
+				TemperatureTriggered = false;
+			}
+
+			if (m_SmokeDetector1.Poll1() == false) {
+
+				if (!Smoke1Triggered) {
+
+					StartInterrupt(m_SmokeDetector1.GetLatestError(),&m_SmokeDetector1);
+					Smoke1Triggered = true;
+
+				}
+			} else {
+
+				if (Smoke1Triggered) {
+
+					StartInterrupt(std::string("SMOKE FROM DETECTOR 1 CLEARED"),&m_SmokeDetector1, false);
+					Smoke1Triggered = false;
+				}
+			}
+
+			if (m_SmokeDetector2.Poll2() == false) {
+
+				if (!Smoke2Triggered) {
+
+					StartInterrupt(m_SmokeDetector2.GetLatestError(),&m_SmokeDetector2);
+					Smoke2Triggered = true;
+
+				}
+			} else {
+
+				if (Smoke2Triggered) {
+
+					StartInterrupt(std::string("SMOKE FROM DETECTOR 2 CLEARED"),&m_SmokeDetector2, false);
+					Smoke2Triggered = false;
+				}
+			}
+		}
+	}
+
+	ChannelDestroy(C_Id);
+
+	return 0;
+}
+
+void* AircraftMonitoringSystem::InterruptHandler(InterruptData* data) {
+	RT.Start();
+
+	usleep(MilliToMicroseconds(INTERRUPT_EXECUTION_TIME));
+
+	if (data->display) {
+		o_Display.send_warning(data->sensor, data->msg);
+	} else {
+		o_Display.send_reading(data->msg);
+	}
+	o_Storage.save_warning(data->msg);
+
+	RT.Stop();
+	RT.Compute("INTERRUPT TIME");
+	return 0;
+}
+
+void AircraftMonitoringSystem::StartInterrupt(std::string msg, SystemInput* sensor, bool disp) {
+
+	InterruptData * inter_info = new InterruptData(msg, sensor, this, disp);
+	pthread_t temp;
+	pthread_create(&temp, NULL, &AircraftMonitoringSystem::InterruptHandler_ENTRY, inter_info);
+	pthread_detach(temp);
+
+}
+
+
+void* AircraftMonitoringSystem::DisplayHandler(void) {
+	int C_Id = ChannelCreate(0);
+	Timer tc(C_Id);
+	tc.setTimer(0, 1000000 * DISPLAY_REFRESH_RATE);
+
+	int rcvid_c;
+	Message msg;
+
+	while (1) {
+
+		rcvid_c = MsgReceive(C_Id, &msg, sizeof(msg), NULL);
+
+		if (rcvid_c == 0)
+		{
+			o_Display.print_screen(o_FuelLamp.getColor(), o_EnginePressureLamp.getColor(), o_EngineTemperatureLamp.getColor(),
+				o_SmokeDetector1Lamp.getColor(), o_SmokeDetector2Lamp.getColor(), o_FuelDial.printMeasurement(), o_EnginePressureDial.printMeasurement(),
+				o_EngineTemperatureDial.printMeasurement(), READINGS_REQUESTED);
+		}
+	}
+	ChannelDestroy(C_Id);
+
+	return 0;
+}
+
+
+void* AircraftMonitoringSystem::SimulateData(void) {
+
+	while (1) {
+
+		dummy.simulation.fuel_level -= FUEL_CONSUMPTION_RATE;
+		dummy.simulation.pressure = RandomValue(dummy.simulation.pressure, ENGINE_PRESSURE_INITIAL_VALUE, ENGINE_PRESSURE_DANGER_LIMIT, VARIATION_PERCENTAGE);
+		dummy.simulation.temperature = RandomValue(dummy.simulation.temperature, ENGINE_TEMPERATURE_INITIAL_VALUE, ENGINE_TEMPERATURE_DANGER_LIMIT, VARIATION_PERCENTAGE);
+
+		if (!SMOKE_SIM_1) {
+		dummy.simulation.smoke1 = SmokeEvent();
+		}
+
+		if (!SMOKE_SIM_2) {
+		dummy.simulation.smoke2 = SmokeEvent();
+		}
+
+		usleep(MilliToMicroseconds(SIMULATION_RATE));
+	}
+
+	return 0;
+}
+
+
+void* AircraftMonitoringSystem::KeyboardHandler(void) {
+
+	while (1) {
+
+		WARNING warning = {};
+		//ACK Warning (Y), IGNORE Warning (N), REQUEST Reading (R), SIMULATE Smoke1 (Z), SIMULATE Smoke2 (X)
+		char option = m_Keyboard.getChar();
+
+		if (option == 'k') {
+			exit(1);
+		}
+
+		if (option == 'y' /*acknowledge latest warning*/) {
+
+			if (o_Display.warning_messages.size() > 0)
+			{
+				RT3.Start();
+
+				warning = o_Display.get_top_warning();
+
+				//std::cout << "CONFIRM (Y/N) acknowledge:: " << warning.message << "\n";
+				//char confirm = m_Keyboard.getConfirmation();
+
+				//if (confirm = 'y')
+				//{
+					warning.sender->Acknowledge();
+					std::cout << "ACKNOWLEDGED:: " << warning.message << "\n";
+					o_Display.send_reading("ACKNOWLEDGED:: " + warning.message);
+					o_Display.erase_top_warning();
+				//}
+				RT3.Stop();
+				RT3.Compute("ACKNOWLEDGE TIME");
+			} else {
+				std::cout << "No warning message to ACK\n";
+			}
+		}
+
+		if (option == 'n' /*ignore latest warning*/) {
+
+			if (o_Display.warning_messages.size() > 0)
+			{
+				warning = o_Display.get_top_warning();
+
+				//std::cout << "CONFIRM (Y/N) ignore:: " << warning.message << "\n";
+				//char confirm = m_Keyboard.getConfirmation();
+
+				//if (confirm == 'y')
+				//{
+					warning.sender->Acknowledge(true);
+					std::cout << "IGNORED::" << warning.message << "\n";
+					o_Display.send_reading("IGNORED:: " + warning.message);
+					o_Display.erase_top_warning();
+				//}
+
+			} else {
+				std::cout << "No warning message to ignore\n";
+			}
+		}
+
+		if (option == 'z' /*sim smoke 1*/)
+		{
+			std::cout << "Toggling Smoke 1 Simulation...";
+			SMOKE_SIM_1 = !SMOKE_SIM_1;
+			if (SMOKE_SIM_1) { std::cout << "ON\n"; } else { std::cout << "OFF\n";  }
+			dummy.simulation.smoke1 = SMOKE_DANGER_LIMIT;
+		}
+
+		if (option == 'x' /*sim smoke 2*/) {
+			std::cout << "Toggling Smoke 2 Simulation...";
+			SMOKE_SIM_2 = !SMOKE_SIM_2;
+			if (SMOKE_SIM_2) { std::cout << "ON\n"; } else { std::cout << "OFF\n"; }
+			dummy.simulation.smoke2 = SMOKE_DANGER_LIMIT;
+		}
+
+		if (option == 'c' /*clear readings*/) {
+			o_Display.clear_readings();
+		}
+
+		if (option == 'p') {
+			std::vector<std::string> rts = ResponseTime::response_times;
+
+			for( int i = 0; i < rts.size(); i++) {
+				std::cout << rts[i] << std::endl;
+			}
+		}
+
+		if (option == 'r' /*request*/ ) {
+
+			READINGS_REQUESTED = true;
+
+			char reading = m_Keyboard.getChar();
+
+			if (o_Display.warning_messages.size() > 0) {
+				std::cout << "Please ACKNOWLEDGE warnings before.\n";
+				o_Display.send_reading("Please ACKNOWLEDGE warnings before.");
+				continue;
+			}
+
+			if (reading == 'f' /*fuel*/) {
+				std::cout << "Fuel sensor reading...\n";
+
+				pthread_t FuelReading_ID;
+				pthread_create(&FuelReading_ID, NULL, &AircraftMonitoringSystem::DialAverageRateReading_ENTRY, FuelReadingInfo);
+				pthread_detach(FuelReading_ID);
+
+				m_FuelSensor.RemoveIgnore();
+			}
+
+			if (reading == 't' /*temperature*/) {
+				std::cout << "Temperature sensor reading...\n";
+
+				pthread_t TemperatureReading_ID;
+				pthread_create(&TemperatureReading_ID, NULL, &AircraftMonitoringSystem::DialAverageRateReading_ENTRY, TemperatureReadingInfo);
+				pthread_detach(TemperatureReading_ID);
+
+				m_EngineTemperatureSensor.RemoveIgnore();
+			}
+
+			if (reading == 'p' /*pressure*/) {
+				std::cout << "Pressure sensor reading...\n";
+
+				pthread_t PressureReading_ID;
+				pthread_create(&PressureReading_ID, NULL, &AircraftMonitoringSystem::DialAverageRateReading_ENTRY, PressureReadingInfo);
+				pthread_detach(PressureReading_ID);
+
+				m_EnginePressureSensor.RemoveIgnore();
+			}
+
+			if (reading == 'c' /*smoke1*/) {
+				std::cout << "Smoke detector 1 reading...\n";
+				m_SmokeDetector1.RemoveIgnore();
+			}
+
+			if (reading == 'x' /*smoke2*/) {
+				std::cout << "Smoke detector 2 reading...\n";
+				m_SmokeDetector2.RemoveIgnore();
+			}
+
+			READINGS_REQUESTED = false;
+		}
+	}
+	return 0;
+}
+
+
+float AircraftMonitoringSystem::RandomValue(const float current_value, const float initial_value, const float danger_value, float percentage) {
+	int random_number = rand() % 100 + 1; //1 to 100
+	float variation = percentage * initial_value;
+
+#ifdef FREQUENT_FAILURES
+	if (random_number == 100) {
+		//std::cout << "*** DANGER VALUE SET\n";
+		return danger_value;
+	}
+#endif
+
+	if (random_number <= 50) {
+		return current_value + variation;
+	}
+
+	return current_value - variation;
+}
+
+
+float AircraftMonitoringSystem::SmokeEvent() {
+	int random_number = rand() % 100 + 1; // 1 to 100
+
+	if (random_number <= SMOKE_FAILURE_CHANCE) {
+		return SMOKE_DANGER_LIMIT;
+	}
+	return SMOKE_INITIAL_VALUE;
+}
+
+
+void* AircraftMonitoringSystem::DialAverageRateReading(ReadingData * reading_info) {
+
+	RT2.Start();
+
+	float rate_of_change = 0;
+	int num_of_readings = 0;
+	std::vector<float> readings;
+	std::string final_reading = "";
+
+	int C_chid = ChannelCreate(0);
+	Timer tc(C_chid);
+	tc.setTimer(POLLING_PERIOD, 0);
+
+	int rcvid_c;
+	Message msg;
+
+	while (1) {
+
+		rcvid_c = MsgReceive(C_chid, &msg, sizeof(msg), NULL);
+
+		if (rcvid_c == 0)
+		{
+			if (num_of_readings < reading_info->count) {
+				readings.push_back(reading_info->dial->getMeasurement());
+				num_of_readings++;
+
+			} else {
+
+				for (size_t i = 0; i <= readings.size() - 2; i++) {
+					rate_of_change = (rate_of_change + ((readings[i + 1] - readings[i]) / 2)) / 2;
+				}
+				rate_of_change *= reading_info->multiplier;
+				final_reading = reading_info->front_message + " " + to_string(rate_of_change) + " " + reading_info->dial->unit_type + "/" + reading_info->time_unit;
+				o_Display.send_reading(final_reading);
+				break;
+			}
+		}
+	}
+	ChannelDestroy(C_chid);
+
+	RT2.Stop();
+	RT2.Compute("READING TIME");
+	return 0;
+}
+
+
+void AircraftMonitoringSystem::Initialize() {
+
+	o_FuelDial.setUnit(FUEL_UNITS);
+	o_EnginePressureDial.setUnit(ENGINE_PRESSURE_UNITS);
+	o_EngineTemperatureDial.setUnit(ENGINE_TEMPERATURE_UNITS);
+
+	m_FuelSensor.AttachLamp(&o_FuelLamp);
+	m_EnginePressureSensor.AttachLamp(&o_EnginePressureLamp);
+	m_EngineTemperatureSensor.AttachLamp(&o_EngineTemperatureLamp);
+	m_SmokeDetector1.AttachLamp(&o_SmokeDetector1Lamp);
+	m_SmokeDetector2.AttachLamp(&o_SmokeDetector2Lamp);
+
+	m_FuelSensor.AttachDial(&o_FuelDial);
+	m_EnginePressureSensor.AttachDial(&o_EnginePressureDial);
+	m_EngineTemperatureSensor.AttachDial(&o_EngineTemperatureDial);
+
+	//Limits: upper,lower,danger
+	LIMITS fuel_limits = {FUEL_UPPER_LIMIT, FUEL_LOWER_LIMIT, FUEL_DANGER_LIMIT};
+	LIMITS pressure_limits = {ENGINE_PRESSURE_UPPER_LIMIT, ENGINE_PRESSURE_LOWER_LIMIT, ENGINE_PRESSURE_DANGER_LIMIT};
+	LIMITS temperature_limits = {ENGINE_TEMPERATURE_UPPER_LIMIT, ENGINE_TEMPERATURE_LOWER_LIMIT, ENGINE_TEMPERATURE_DANGER_LIMIT};
+	LIMITS smoke_limits = {SMOKE_UPPER_LIMIT, SMOKE_LOWER_LIMIT, SMOKE_DANGER_LIMIT};
+
+	m_FuelSensor.Initialize(FUEL_INITIAL_VALUE, fuel_limits);
+	m_EnginePressureSensor.Initialize(ENGINE_PRESSURE_INITIAL_VALUE, pressure_limits);
+	m_EngineTemperatureSensor.Initialize(ENGINE_TEMPERATURE_INITIAL_VALUE, temperature_limits);
+	m_SmokeDetector1.Initialize(SMOKE_INITIAL_VALUE, smoke_limits);
+	m_SmokeDetector2.Initialize(SMOKE_INITIAL_VALUE, smoke_limits);
+}
+
+
+void AircraftMonitoringSystem::SetPriority(struct sched_param * param, std::string func_name /*= ""*/) {
+
+	sched_setscheduler(0, SCHEDULING_POLICY, param);  //setting priority
+
+	//pthread_setschedparam(pthread_self(), SCHEDULING_POLICY, param);
+	//pthread_setschedprio(pthread_self(), MID_PRIORITY);
+
+	//Find out what the current priority is.
+	struct sched_param test_param;
+	sched_getparam(0, &test_param);
+
+	if (func_name != "") {
+		std::cout << func_name << "::";
+	}
+	printf(" Assigned priority is %d.\n", test_param.sched_priority);
+
+}
+
+void* AircraftMonitoringSystem::SimulateData_ENTRY(void *context) {
+	((AircraftMonitoringSystem *)context)->SetPriority(&((AircraftMonitoringSystem *)context)->SimulateData_PARAM, "SimulateData");
+	((AircraftMonitoringSystem *)context)->SimulateData();
+	return 0;
+}
+
+void* AircraftMonitoringSystem::PollSensors_ENTRY(void *context) {
+	((AircraftMonitoringSystem *)context)->SetPriority(&((AircraftMonitoringSystem *)context)->PollSensors_PARAM, "PollSensors");
+	((AircraftMonitoringSystem *)context)->PollSensors();
+	return 0;
+}
+
+void* AircraftMonitoringSystem::KeyboardHandler_ENTRY(void *context) {
+	((AircraftMonitoringSystem *)context)->SetPriority(&((AircraftMonitoringSystem *)context)->KeyboardHandler_PARAM, "KeyboardHandler");
+	((AircraftMonitoringSystem *)context)->KeyboardHandler();
+	return 0;
+}
+
+void* AircraftMonitoringSystem::DisplayHandler_ENTRY(void *context) {
+	((AircraftMonitoringSystem *)context)->SetPriority(&((AircraftMonitoringSystem *)context)->DisplayHandler_PARAM, "DisplayHandler");
+	((AircraftMonitoringSystem *)context)->DisplayHandler();
+	return 0;
+}
+
+void* AircraftMonitoringSystem::InterruptHandler_ENTRY(void *context) {
+	((InterruptData *)context)->AMS->SetPriority(&((InterruptData *)context)->AMS->InterruptHandler_PARAM, "InterruptHandler");
+	((InterruptData *)context)->AMS->InterruptHandler((InterruptData*)context);
+	return 0;
+}
+
+void* AircraftMonitoringSystem::DialAverageRateReading_ENTRY(void *context) {
+	((ReadingData *)context)->AMS->SetPriority(&((ReadingData *)context)->AMS->DialAverageRateReading_PARAM);
+	((ReadingData *)context)->AMS->DialAverageRateReading((ReadingData*)context);
+	return 0;
+}
+
+template <typename T>
+std::string AircraftMonitoringSystem::to_string(T value)
+{
+  //create an output string stream
+  std::ostringstream os ;
+
+  //throw the value into the string stream
+  os << value ;
+
+  //convert the string stream into a string and return
+  return os.str() ;
+}
+
+
+
+//=============================================================================
+// ResponseTime -- Used to compute the response time (milliseconds) of the handlers
+//=============================================================================
+ResponseTime::ResponseTime() {
+	response_time = 0;
+}
+
+void ResponseTime::Start() {
+
+	begin = std::chrono::steady_clock::now();
+}
+
+void ResponseTime::Stop() {
+
+	end = std::chrono::steady_clock::now();
+}
+
+std::vector<std::string> ResponseTime::response_times;
+
+int ResponseTime::Compute(std::string type) {
+	response_time = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+
+	std::string msg = type + ":: " + std::to_string(response_time);
+	ResponseTime::response_times.push_back(msg);
+	return response_time;
+}

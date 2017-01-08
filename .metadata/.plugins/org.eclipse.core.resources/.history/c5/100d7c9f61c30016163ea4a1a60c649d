@@ -1,0 +1,309 @@
+/*
+ * SystemInput.cpp
+ *
+ *  Created on: 24-Nov-2016
+ *      Author: j_abba
+ */
+
+#include "SystemInput.h"
+#include <stdio.h>
+
+SIMULATION SystemInput::simulation = {FUEL_INITIAL_VALUE, ENGINE_PRESSURE_INITIAL_VALUE, ENGINE_TEMPERATURE_INITIAL_VALUE, SMOKE_INITIAL_VALUE, SMOKE_INITIAL_VALUE};
+
+//=============================================================================
+// SYSTEM INPUT
+//=============================================================================
+SystemInput::SystemInput() {
+	num_consecutive_failures = 0;
+	srand (time(NULL)); //random seed
+	dial = NULL;
+	lamp = NULL;
+	display = NULL;
+	storage = NULL;
+	initialized = false;
+	ignore_errors = false;
+	message_sent = false;
+}
+
+void SystemInput::Initialize(float initial_value, LIMITS lim)
+{
+	SetLimits(lim);
+	if (dial != NULL) {
+		dial->setMeasurement(initial_value);
+	}
+	initialized = true;
+}
+
+void SystemInput::SetLimits(LIMITS l)
+{
+	limits.lower = l.lower;
+	limits.upper = l.upper;
+	limits.danger = l.danger;
+}
+
+bool SystemInput::SimulateExecution(int msecs, int timeout_chance)
+{
+	int random_number = rand() % 100 + 1; //1 to 100
+	usleep(MilliToMicroseconds(msecs));
+	return random_number > timeout_chance;
+}
+
+void SystemInput::ProblemDetected() {
+
+	if (lamp != NULL) {
+		lamp->setRed();
+	}
+	else {
+		std::cout << "LAMP NULL\n";
+	}
+
+}
+
+void SystemInput::RemoveIgnore() {
+	ignore_errors = false;
+}
+
+void SystemInput::ResetLamp() {
+
+	if (lamp != NULL) {
+		lamp->setGreen();
+	}
+	else {
+		std::cout << "LAMP NULL\n";
+	}
+}
+
+void SystemInput::ResetErrors() {
+	num_consecutive_failures = 0;
+}
+
+void SystemInput::Acknowledge(bool ignore /*= false*/)
+{
+	message_sent = false;
+	ignore_errors = ignore;
+
+	if (!ignore) {
+		ResetLamp();
+	}
+}
+
+//TODO: Trigger Interrupt
+void SystemInput::SendWarning(std::string msg) {
+
+	if (display != NULL) {
+		display->send_warning(this, msg);
+	} else {
+		std::cout << "DISPLAY NULL " << msg;
+	}
+
+	if (storage != NULL) {
+		storage->save_warning(msg);
+	} else {
+		std::cout << "STORAGE NULL " << msg;
+	}
+
+	message_sent = true;
+}
+
+int SystemInput::FailureDetected() {
+	++num_consecutive_failures;
+	return num_consecutive_failures;
+}
+
+//=============================================================================
+// FUEL SENSOR
+//=============================================================================
+std::string FuelSensor::Poll() {
+
+	//std::cout << "Polling Fuel Sensor...\n";
+
+	bool success = false;
+	int num_failures = 0;
+	float current_fuel_level = simulation.fuel_level;
+
+	//std::cout << "Current fuel level: " << to_string(current_fuel_level) <<std::endl;
+
+	success = SimulateExecution(FUEL_SENSOR_EXECUTION, FUEL_FAILURE_CHANCE);
+
+	if (dial != NULL) {
+		dial->setMeasurement(current_fuel_level);
+	}
+
+	if (ignore_errors || message_sent) { return false; }
+
+	if (!success  || (current_fuel_level <= limits.danger)) {
+		num_failures = FailureDetected();
+
+		if (num_failures >= 3)
+		{
+			ProblemDetected();
+			SendWarning("FUEL ERROR: " + to_string(current_fuel_level) + " " + dial->unit_type);
+			ResetErrors();
+			return false;
+		}
+	} else {
+		ResetErrors();
+	}
+	return true;
+}
+
+//=============================================================================
+// ENGINE PRESSURE SENSOR
+//=============================================================================
+std::string EnginePressureSensor::Poll() {
+
+	//std::cout << "Polling Pressure Sensor...\n";
+
+	bool success = false;
+	int num_failures = 0;
+	float current_pressure_value = simulation.pressure;
+	//std::cout << "Current pressure value: " << to_string(current_pressure_value) <<std::endl;
+
+	success = SimulateExecution(ENGINE_PRESSURE_SENSOR_EXECUTION, ENGINE_PRESSURE_FAILURE_CHANCE);
+
+	if (dial != NULL) {
+		dial->setMeasurement(current_pressure_value);
+	}
+
+	if (ignore_errors || message_sent) { return false; }
+
+	if (!success  || (current_pressure_value <= limits.danger)
+			      || (current_pressure_value >= limits.upper)) {
+		num_failures = FailureDetected();
+
+		if (num_failures >= 3)
+		{
+			ProblemDetected();
+			SendWarning("ENGINE PRESSURE ERROR: " + to_string(current_pressure_value) + " " + dial->unit_type);
+			ResetErrors();
+			return false;
+		}
+	} else {
+		ResetErrors();
+	}
+	return true;
+}
+
+
+//=============================================================================
+// ENGINE TEMPERATURE SENSOR
+//=============================================================================
+std::string EngineTemperatureSensor::Poll() {
+
+	//std::cout << "Polling Temperature Sensor...\n";
+
+	bool success = false;
+	int num_failures = 0;
+	float current_temperature_value = simulation.temperature;
+	//std::cout << "Current temperature value: " << to_string(current_temperature_value) <<std::endl;
+
+	success = SimulateExecution(ENGINE_TEMPERATURE_SENSOR_EXECUTION, ENGINE_TEMPERATURE_FAILURE_CHANCE);
+
+	if (dial != NULL) {
+		dial->setMeasurement(current_temperature_value);
+	}
+
+	if (ignore_errors || message_sent) { return false; }
+
+	if (!success  || (current_temperature_value >= limits.danger)
+				  || (current_temperature_value <= limits.lower)) {
+		num_failures = FailureDetected();
+
+		if (num_failures >= 3)
+		{
+			ProblemDetected();
+			SendWarning("ENGINE TEMPERATURE ERROR: " + to_string(current_temperature_value) + " " + dial->unit_type);
+			ResetErrors();
+			return false;
+		}
+	} else {
+		ResetErrors();
+	}
+	return true;
+}
+
+
+//=============================================================================
+// SMOKE DETECTOR
+//=============================================================================
+std::string SmokeDetector::Poll1(float smoke /*= simulation.smoke1*/){
+
+	//std::cout << "Polling Smoke Sensor...\n";
+
+	bool success = false;
+	int num_failures = 0;
+	float current_smoke = smoke;
+
+	success = SimulateExecution(SMOKE_SENSOR_EXECUTION, SMOKE_FAILURE_CHANCE);
+
+	if (ignore_errors || message_sent) { return false;}
+
+	if (!success  || (current_smoke == limits.danger)) {
+		num_failures = FailureDetected();
+
+		if (num_failures >= 3)
+		{
+			 //TODO: for smoke, interrupt
+			ProblemDetected();
+			SendWarning("SMOKE SENSOR ERROR: " + to_string(current_smoke));
+			ResetErrors();
+			return false;
+		}
+	} else {
+		ResetErrors();
+	}
+	return true;
+}
+
+std::string SmokeDetector::Poll2() {
+	return Poll1(simulation.smoke2);
+}
+
+
+//=============================================================================
+// KEYBOARD
+//=============================================================================
+char Keyboard::getChar() {
+	char input;
+
+	input = getchar();
+	clearInputBuffer();
+
+	return input;
+}
+
+char Keyboard::getConfirmation() {
+
+	char input;
+	do {
+		input = getchar();
+
+		if (input != 'y' && input != 'n') {
+			std::cout << "Wrong input!\n";
+		}
+	} while (input != 'y' && input != 'n');
+
+	clearInputBuffer();
+
+	return input;
+}
+
+void Keyboard::clearInputBuffer() {
+	char c;
+
+	while ((c = getchar()) != '\n' && c != EOF) {}
+}
+
+
+template <typename T>
+std::string SystemInput::to_string(T value)
+{
+  //create an output string stream
+  std::ostringstream os ;
+
+  //throw the value into the string stream
+  os << value ;
+
+  //convert the string stream into a string and return
+  return os.str() ;
+}

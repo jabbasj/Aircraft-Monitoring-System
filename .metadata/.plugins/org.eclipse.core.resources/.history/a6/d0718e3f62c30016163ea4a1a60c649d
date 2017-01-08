@@ -1,0 +1,142 @@
+/*
+ * SystemInput.h
+ *
+ *  Created on: 24-Nov-2016
+ *      Author: j_abba
+ */
+#ifndef SYSTEMINPUT_H_
+#define SYSTEMINPUT_H_
+
+#include <time.h>
+#include <unistd.h>
+#include "LimitDefinitions.h"
+#include "timer.h"
+#include "SystemOutput.h"
+
+//Forward declarations
+class Dial;
+class Lamp;
+class CRTDisplay;
+class Storage;
+
+//=============================================================================
+// SYSTEM INPUT
+//=============================================================================
+class SystemInput {
+	friend class SystemOutput;
+	friend class AircraftMonitoringSystem;
+
+protected:
+	static SIMULATION simulation;
+	bool initialized;
+	bool ignore_errors;
+	bool message_sent;
+	std::string latest_error;
+	int num_consecutive_failures;
+	LIMITS limits;
+
+	Dial *dial;
+	Lamp *lamp;
+	CRTDisplay *display;
+	Storage *storage;
+
+protected:
+	SystemInput();
+
+	void AttachDial (Dial * d) { dial = d; }
+	void AttachLamp (Lamp * l) { lamp = l; }
+	void AttachDisplay (CRTDisplay * disp) { display = disp;}
+	void AttachStorage (Storage * s) {storage = s;}
+
+	void Initialize(float initial_value, LIMITS lim);
+	void SetLimits(LIMITS l);
+	int MilliToMicroseconds(int msec) { return 1000 * msec; }
+
+	bool SimulateExecution(int msecs, int timeout_chance);
+
+	void RemoveIgnore();
+	void ProblemDetected();
+	void ResetLamp();
+	void Acknowledge(bool ignore = false);
+	void ResetErrors();
+	void SendWarning(std::string msg);
+	int FailureDetected();
+
+	template <typename T> std::string to_string(T value);
+};
+
+#ifndef _WARNING_
+#define _WARNING_
+struct WARNING {
+	SystemInput * sender;
+	std::string time;
+	std::string message;
+};
+#endif
+
+//Derived classes of SystemInput below:
+
+//=============================================================================
+// FUEL SENSOR
+//=============================================================================
+class FuelSensor: public SystemInput {
+	friend class AircraftMonitoringSystem;
+
+protected:
+
+	bool Poll();
+};
+
+//=============================================================================
+// ENGINE PRESSURE SENSOR
+//=============================================================================
+class EnginePressureSensor: public SystemInput {
+	friend class AircraftMonitoringSystem;
+
+protected:
+
+	bool Poll();
+
+};
+
+//=============================================================================
+// ENGINE TEMPERATURE SENSOR
+//=============================================================================
+class EngineTemperatureSensor: public SystemInput {
+	friend class AircraftMonitoringSystem;
+protected:
+
+	bool Poll();
+
+};
+
+//=============================================================================
+// SMOKE DETECTOR
+//=============================================================================
+class SmokeDetector: public SystemInput {
+	friend class AircraftMonitoringSystem;
+
+protected:
+
+	bool Poll1(float smoke = simulation.smoke1);
+	bool Poll2();
+
+};
+
+
+//=============================================================================
+// KEYBOARD
+//=============================================================================
+class Keyboard: public SystemInput {
+	friend class AircraftMonitoringSystem;
+protected:
+	char getChar();
+	char getConfirmation();
+
+private:
+	void clearInputBuffer();
+
+};
+
+
+#endif /* SYSTEMINPUT_H_ */

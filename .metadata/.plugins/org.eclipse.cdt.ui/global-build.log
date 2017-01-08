@@ -1,0 +1,38 @@
+"C:\\qnx660\\host\\win32\\x86\\usr\\bin\\make.exe" -k CPULIST=x86 "EXTRA_SUFFIXES=cpp " all --file=C:/Users/Jaw/AppData/Local/Temp/QMakefile14822356720014822344371075128166.tmp 
+C:/qnx660/host/win32/x86/usr/bin/make.exe -j 1 -Cx86 -fMakefile all
+make.exe[1]: Entering directory `C:/Users/Jaw/ide-5.0-workspace/project/x86'
+C:/qnx660/host/win32/x86/usr/bin/make.exe -j 1 -Co -fMakefile all 
+make.exe[2]: Entering directory `C:/Users/Jaw/ide-5.0-workspace/project/x86/o'
+C:/qnx660/host/win32/x86/usr/bin/qcc -Vgcc_ntox86 -c -Wc,-Wall  -Os          -DNDEBUG    -I. -IC:/Users/Jaw/ide-5.0-workspace/project/x86/o -IC:/Users/Jaw/ide-5.0-workspace/project/x86 -IC:/Users/Jaw/ide-5.0-workspace/project -IC:/qnx660/target/qnx6/usr/include     -DBUILDENV_qss   C:/Users/Jaw/ide-5.0-workspace/project/AircraftMonitoringSystem.cpp 
+C:/Users/Jaw/ide-5.0-workspace/project/AircraftMonitoringSystem.cpp: In member function 'void* AircraftMonitoringSystem::KeyboardHandler()':
+C:/Users/Jaw/ide-5.0-workspace/project/AircraftMonitoringSystem.cpp:300:33: warning: comparison between signed and unsigned integer expressions [-Wsign-compare]
+C:/qnx660/host/win32/x86/usr/bin/qcc -Vgcc_ntox86 -c -Wc,-Wall  -Os          -DNDEBUG    -I. -IC:/Users/Jaw/ide-5.0-workspace/project/x86/o -IC:/Users/Jaw/ide-5.0-workspace/project/x86 -IC:/Users/Jaw/ide-5.0-workspace/project -IC:/qnx660/target/qnx6/usr/include     -DBUILDENV_qss   C:/Users/Jaw/ide-5.0-workspace/project/SystemInput.cpp 
+C:/qnx660/host/win32/x86/usr/bin/qcc -Vgcc_ntox86 -c -Wc,-Wall  -Os          -DNDEBUG    -I. -IC:/Users/Jaw/ide-5.0-workspace/project/x86/o -IC:/Users/Jaw/ide-5.0-workspace/project/x86 -IC:/Users/Jaw/ide-5.0-workspace/project -IC:/qnx660/target/qnx6/usr/include     -DBUILDENV_qss   C:/Users/Jaw/ide-5.0-workspace/project/SystemOutput.cpp 
+C:/qnx660/host/win32/x86/usr/bin/qcc -Vgcc_ntox86 -c -Wc,-Wall  -Os          -DNDEBUG    -I. -IC:/Users/Jaw/ide-5.0-workspace/project/x86/o -IC:/Users/Jaw/ide-5.0-workspace/project/x86 -IC:/Users/Jaw/ide-5.0-workspace/project -IC:/qnx660/target/qnx6/usr/include     -DBUILDENV_qss   C:/Users/Jaw/ide-5.0-workspace/project/project.cc 
+C:/qnx660/host/win32/x86/usr/bin/rm -f  C:/Users/Jaw/ide-5.0-workspace/project/x86/o/project
+C:/qnx660/host/win32/x86/usr/bin/qcc -Vgcc_ntox86  -lang-c++ -lang-c++    -o C:/Users/Jaw/ide-5.0-workspace/project/x86/o/project    AircraftMonitoringSystem.o    SystemInput.o    SystemOutput.o    project.o   -L . -L C:/qnx660/target/qnx6/x86/lib -L C:/qnx660/target/qnx6/x86/usr/lib  -Wl,--rpath-link . -Wl,--rpath-link C:/qnx660/target/qnx6/x86/lib -Wl,--rpath-link C:/qnx660/target/qnx6/x86/usr/lib      
+make.exe[2]: Leaving directory `C:/Users/Jaw/ide-5.0-workspace/project/x86/o'
+C:/qnx660/host/win32/x86/usr/bin/make.exe -j 1 -Co-g -fMakefile all
+make.exe[2]: Entering directory `C:/Users/Jaw/ide-5.0-workspace/project/x86/o-g'
+C:/qnx660/host/win32/x86/usr/bin/qcc -Vgcc_ntox86 -c -Wc,-Wall                -I. -IC:/Users/Jaw/ide-5.0-workspace/project/x86/o -IC:/Users/Jaw/ide-5.0-workspace/project/x86/o-g -IC:/Users/Jaw/ide-5.0-workspace/project/x86 -IC:/Users/Jaw/ide-5.0-workspace/project -IC:/qnx660/target/qnx6/usr/include    -g    -DVARIANT_g -DBUILDENV_qss   C:/Users/Jaw/ide-5.0-workspace/project/AircraftMonitoringSystem.cpp 
+C:/Users/Jaw/ide-5.0-workspace/project/AircraftMonitoringSystem.cpp: In member function 'void* AircraftMonitoringSystem::KeyboardHandler()':
+C:/Users/Jaw/ide-5.0-workspace/project/AircraftMonitoringSystem.cpp:300:33: warning: comparison between signed and unsigned integer expressions [-Wsign-compare]
+C:/qnx660/host/win32/x86/usr/bin/qcc -Vgcc_ntox86 -c -Wc,-Wall                -I. -IC:/Users/Jaw/ide-5.0-workspace/project/x86/o -IC:/Users/Jaw/ide-5.0-workspace/project/x86/o-g -IC:/Users/Jaw/ide-5.0-workspace/project/x86 -IC:/Users/Jaw/ide-5.0-workspace/project -IC:/qnx660/target/qnx6/usr/include    -g    -DVARIANT_g -DBUILDENV_qss   C:/Users/Jaw/ide-5.0-workspace/project/SystemInput.cpp 
+C:/qnx660/host/win32/x86/usr/bin/qcc -Vgcc_ntox86 -c -Wc,-Wall                -I. -IC:/Users/Jaw/ide-5.0-workspace/project/x86/o -IC:/Users/Jaw/ide-5.0-workspace/project/x86/o-g -IC:/Users/Jaw/ide-5.0-workspace/project/x86 -IC:/Users/Jaw/ide-5.0-workspace/project -IC:/qnx660/target/qnx6/usr/include    -g    -DVARIANT_g -DBUILDENV_qss   C:/Users/Jaw/ide-5.0-workspace/project/SystemOutput.cpp 
+C:/qnx660/host/win32/x86/usr/bin/qcc -Vgcc_ntox86 -c -Wc,-Wall                -I. -IC:/Users/Jaw/ide-5.0-workspace/project/x86/o -IC:/Users/Jaw/ide-5.0-workspace/project/x86/o-g -IC:/Users/Jaw/ide-5.0-workspace/project/x86 -IC:/Users/Jaw/ide-5.0-workspace/project -IC:/qnx660/target/qnx6/usr/include    -g    -DVARIANT_g -DBUILDENV_qss   C:/Users/Jaw/ide-5.0-workspace/project/project.cc 
+C:/qnx660/host/win32/x86/usr/bin/rm -f  C:/Users/Jaw/ide-5.0-workspace/project/x86/o-g/project_g
+C:/qnx660/host/win32/x86/usr/bin/qcc -Vgcc_ntox86  -lang-c++ -lang-c++    -o C:/Users/Jaw/ide-5.0-workspace/project/x86/o-g/project_g    AircraftMonitoringSystem.o    SystemInput.o    SystemOutput.o    project.o   -L . -L C:/qnx660/target/qnx6/x86/lib -L C:/qnx660/target/qnx6/x86/usr/lib  -Wl,--rpath-link . -Wl,--rpath-link C:/qnx660/target/qnx6/x86/lib -Wl,--rpath-link C:/qnx660/target/qnx6/x86/usr/lib    -g     
+make.exe[2]: Leaving directory `C:/Users/Jaw/ide-5.0-workspace/project/x86/o-g'
+make.exe[1]: Leaving directory `C:/Users/Jaw/ide-5.0-workspace/project/x86'
+"C:\\qnx660\\host\\win32\\x86\\usr\\bin\\make.exe" -k CPULIST=x86 "EXTRA_SUFFIXES=cpp " all --file=C:/Users/Jaw/AppData/Local/Temp/QMakefile14822357881301892146135482489817.tmp 
+C:/qnx660/host/win32/x86/usr/bin/make.exe -j 1 -Cx86 -fMakefile all
+make.exe[1]: Entering directory `C:/Users/Jaw/ide-5.0-workspace/project/x86'
+C:/qnx660/host/win32/x86/usr/bin/make.exe -j 1 -Co -fMakefile all 
+make.exe[2]: Entering directory `C:/Users/Jaw/ide-5.0-workspace/project/x86/o'
+make.exe[2]: Nothing to be done for `all'.
+make.exe[2]: Leaving directory `C:/Users/Jaw/ide-5.0-workspace/project/x86/o'
+C:/qnx660/host/win32/x86/usr/bin/make.exe -j 1 -Co-g -fMakefile all
+make.exe[2]: Entering directory `C:/Users/Jaw/ide-5.0-workspace/project/x86/o-g'
+make.exe[2]: Nothing to be done for `all'.
+make.exe[2]: Leaving directory `C:/Users/Jaw/ide-5.0-workspace/project/x86/o-g'
+make.exe[1]: Leaving directory `C:/Users/Jaw/ide-5.0-workspace/project/x86'

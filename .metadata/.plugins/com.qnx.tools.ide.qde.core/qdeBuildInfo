@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<QdeProjectsBuildInfo>
+<qdeBuildInfo IMemento.internal.id="C:/Users/Jaw/ide-5.0-workspace/project" buildConfig="_x86_g" projectName="project">
+<srcDirs>
+<element>C:/Users/Jaw/ide-5.0-workspace/project/x86/o</element>
+<element>C:/Users/Jaw/ide-5.0-workspace/project/x86/o-g</element>
+<element>C:/Users/Jaw/ide-5.0-workspace/project/x86</element>
+<element>C:/Users/Jaw/ide-5.0-workspace/project</element>
+</srcDirs>
+<libDirs>
+<element>C:/Users/Jaw/ide-5.0-workspace/project/x86/o-g</element>
+<element>C:/qnx660/target/qnx6/x86/lib</element>
+<element>C:/qnx660/target/qnx6/x86/usr/lib</element>
+</libDirs>
+<incDirs>
+<element>C:/qnx660/target/qnx6/usr/include</element>
+<element>C:/qnx660/target/qnx6/usr/include/cpp/c</element>
+<element>C:/qnx660/target/qnx6/usr/include/cpp</element>
+<element>C:/Users/Jaw/ide-5.0-workspace/project/x86/o-g</element>
+<element>C:/Users/Jaw/ide-5.0-workspace/project/x86/o</element>
+<element>C:/Users/Jaw/ide-5.0-workspace/project/x86</element>
+<element>C:/Users/Jaw/ide-5.0-workspace/project</element>
+</incDirs>
+<libs/>
+<SRCS>
+<element>C:/Users/Jaw/ide-5.0-workspace/project/project.cc</element>
+</SRCS>
+<macros/>
+</qdeBuildInfo>
+</QdeProjectsBuildInfo>

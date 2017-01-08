@@ -1,0 +1,12 @@
+"C:\\qnx660\\host\\win32\\x86\\usr\\bin\\make.exe" -k CPULIST=x86 all --file=C:/Users/Jaw/AppData/Local/Temp/QMakefile1480995914299224036487997377819.tmp 
+C:/qnx660/host/win32/x86/usr/bin/make.exe -j 1 -Cx86 -fMakefile all
+make.exe[1]: Entering directory `C:/Users/Jaw/ide-5.0-workspace/TEST/x86'
+C:/qnx660/host/win32/x86/usr/bin/make.exe -j 1 -Co -fMakefile all 
+make.exe[2]: Entering directory `C:/Users/Jaw/ide-5.0-workspace/TEST/x86/o'
+make.exe[2]: Nothing to be done for `all'.
+make.exe[2]: Leaving directory `C:/Users/Jaw/ide-5.0-workspace/TEST/x86/o'
+C:/qnx660/host/win32/x86/usr/bin/make.exe -j 1 -Co-g -fMakefile all
+make.exe[2]: Entering directory `C:/Users/Jaw/ide-5.0-workspace/TEST/x86/o-g'
+make.exe[2]: Nothing to be done for `all'.
+make.exe[2]: Leaving directory `C:/Users/Jaw/ide-5.0-workspace/TEST/x86/o-g'
+make.exe[1]: Leaving directory `C:/Users/Jaw/ide-5.0-workspace/TEST/x86'

@@ -1,0 +1,169 @@
+#ifndef AIRCRAFTMONITORINGSYSTEM_H_
+#define AIRCRAFTMONITORINGSYSTEM_H_
+
+#include <pthread.h>
+#include <sys/neutrino.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#include "timer.h"
+#include "LimitDefinitions.h"
+#include "SystemInput.h"
+#include <chrono>
+
+#define SCHEDULING_POLICY 	SCHED_RR 	/*Options: SCHED_RR  SCHED_SPORADIC  SCHED_FIFO*/
+#define MAX_PRIORITY 		sched_get_priority_max(SCHEDULING_POLICY)
+#define MIN_PRIORITY 		sched_get_priority_min(SCHEDULING_POLICY)
+#define LOW_PRIORITY 		int(MAX_PRIORITY * 0.25)
+#define MID_PRIORITY 		int(MAX_PRIORITY * 0.5)
+#define HIGH_PRIORITY 		int(MAX_PRIORITY * 0.75)
+
+#define SimulateData_PRIORITY 			MID_PRIORITY
+#define DisplayHandler_PRIORITY 		MID_PRIORITY
+#define KeyboardHandler_PRIORITY 		LOW_PRIORITY
+#define PollSensors_PRIORITY			MID_PRIORITY
+#define DialAverageRateReading_PRIORITY MID_PRIORITY /*all readings lumped together*/
+#define InterruptHandler_PRIORITY 		HIGH_PRIORITY
+
+//Forward Declaration
+struct ReadingData;
+struct InterruptData;
+
+//=============================================================================
+// AIRCRAFT MONITORING SYSTEM
+//=============================================================================
+class AircraftMonitoringSystem {
+public:
+	AircraftMonitoringSystem();
+	~AircraftMonitoringSystem();
+
+	void Start();
+
+	static void *SimulateData_ENTRY(void *context);
+	static void *PollSensors_ENTRY(void *context);
+	static void *KeyboardHandler_ENTRY(void *context);
+	static void *DisplayHandler_ENTRY(void *context);
+	static void *InterruptHandler_ENTRY(void *context);
+	static void *DialAverageRateReading_ENTRY(void *context);
+
+protected:
+	SystemInput dummy;
+
+	//SYSTEM INPUTS
+	FuelSensor m_FuelSensor;
+	EnginePressureSensor m_EnginePressureSensor;
+	EngineTemperatureSensor m_EngineTemperatureSensor;
+	SmokeDetector m_SmokeDetector1;
+	SmokeDetector m_SmokeDetector2;
+	Keyboard m_Keyboard;
+
+	//SYSTEM OUTPUTS
+	Lamp o_FuelLamp;
+	Lamp o_EnginePressureLamp;
+	Lamp o_EngineTemperatureLamp;
+	Lamp o_SmokeDetector1Lamp;
+	Lamp o_SmokeDetector2Lamp;
+
+	Dial o_FuelDial;
+	Dial o_EnginePressureDial;
+	Dial o_EngineTemperatureDial;
+
+	CRTDisplay o_Display;
+	Storage o_Storage;
+
+	//FUNCTIONS
+	void Initialize();
+	void* PollSensors(void);
+	void* SimulateData(void);
+	void* KeyboardHandler(void);
+	void* DisplayHandler(void);
+	void* InterruptHandler(InterruptData* reading_data);
+	void* FuelReading(void);
+	void* PressureReading(void);
+	void* DialAverageRateReading(ReadingData *reading_info);
+	void StartInterrupt(std::string msg, SystemInput* sensor, bool disp = true, bool save = false);
+
+	int MilliToMicroseconds(int msec) { return 1000 * msec; };
+	float RandomValue(const float current_value, const float initial_value, const float danger_value, float percentage);
+	float SmokeEvent();
+	void SetPriority(struct sched_param * param, std::string func_name = "");
+	template <typename T> std::string to_string(T value);
+
+	//DATA
+	bool SMOKE_SIM_1;
+	bool SMOKE_SIM_2;
+	bool READINGS_REQUESTED;
+
+	ReadingData *FuelReadingInfo;
+	ReadingData *PressureReadingInfo;
+	ReadingData *TemperatureReadingInfo;
+
+	pthread_t PollSensors_ID, SimulateData_ID, DisplayHandler_ID, KeyboardHandler_ID; /*readings_ID, interrupt_ID not needed: detached threads*/
+	struct sched_param PollSensors_PARAM, SimulateData_PARAM, DisplayHandler_PARAM, KeyboardHandler_PARAM, DialAverageRateReading_PARAM, InterruptHandler_PARAM;
+};
+
+
+
+//=============================================================================
+// ReadingData -- For passing to pthread_create
+//=============================================================================
+struct ReadingData {
+	int count;
+	Dial* dial;
+	float multiplier;
+	std::string time_unit;
+	std::string front_message;
+	AircraftMonitoringSystem * AMS;
+
+	ReadingData(int c, Dial* d, float mult, std::string t_u, std::string f_m, AircraftMonitoringSystem * _ams) {
+		count = c;
+		dial = d;
+		multiplier = mult;
+		time_unit = t_u;
+		front_message = f_m;
+		AMS = _ams;
+	}
+
+};
+
+//=============================================================================
+// InterruptData -- For passing to pthread_create
+//=============================================================================
+struct InterruptData {
+	bool display;
+	bool save;
+	std::string msg;
+	SystemInput* sensor;
+	AircraftMonitoringSystem * AMS;
+
+	InterruptData(std::string m, SystemInput* s, AircraftMonitoringSystem * _ams, bool disp = true, bool _save = false) {
+		display = disp;
+		msg = m;
+		sensor = s;
+		AMS = _ams;
+		save = _save;
+	}
+};
+
+
+//=============================================================================
+// ResponseTime -- Used to compute the response time (milliseconds) of the handlers
+//=============================================================================
+class ResponseTime {
+
+public:
+	std::chrono::steady_clock::time_point begin;
+	std::chrono::steady_clock::time_point end;
+	int response_time;
+
+	static std::vector<std::string> response_times;
+
+	ResponseTime();
+
+	void Start();
+	void Stop();
+	int Compute(std::string type);
+};
+
+
+#endif /* AIRCRAFTMONITORINGSYSTEM_H_ */

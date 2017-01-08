@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<filterSettings>
+<filter name="Default Filter">
+<filterData type="Events"/>
+<filterData type="Elements"/>
+<filterData type="Partitions"/>
+</filter>
+</filterSettings>
